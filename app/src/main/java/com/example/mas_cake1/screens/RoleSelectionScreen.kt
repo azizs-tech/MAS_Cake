@@ -28,7 +28,7 @@ fun RoleSelectionScreen(
     val welcomeText = if (isEnglish) "Welcome to MAS Cake!" else "Добро пожаловать в MAS Cake!"
     val questionText = if (isEnglish) "How do you want to use the app?" else "Как вы хотите использовать приложение?"
     val customerText = if (isEnglish) "I want to order cakes\n(Customer)" else "Я хочу заказать торты\n(Клиент)"
-    val adminText = if (isEnglish) "I am the Bakery Owner\n(Admin)" else "Я владелец кондитерской\n(Админ)"
+    val adminText = if (isEnglish) "Admin" else "Админ"
 
     Scaffold(
         topBar = {

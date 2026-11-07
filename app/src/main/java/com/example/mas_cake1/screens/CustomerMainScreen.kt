@@ -8,18 +8,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
+import com.example.mas_cake1.CartItem
 import com.example.mas_cake1.ui.theme.ChocolateBrown
 import com.example.mas_cake1.ui.theme.CreamWhite
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerMainScreen(
+    cartItems: List<CartItem>,
     onNavigateToProduct: (String) -> Unit,
-    onNavigateToCheckout: () -> Unit
+    onNavigateToCheckout: () -> Unit,
+    onNavigateToPromo: () -> Unit,
+    onCategorySelected: (String) -> Unit,
+    isEnglish: Boolean,
+    onLanguageToggle: () -> Unit,
+    onIncreaseQuantity: (CartItem) -> Unit,
+    onDecreaseQuantity: (CartItem) -> Unit,
+    onDeleteItem: (CartItem) -> Unit,
+    onWeightChanged: (CartItem, String) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    val tabs = listOf("Торты", "Акции", "Меню", "Корзина", "Профиль")
+    val tabs = if (isEnglish) listOf("Cakes", "Promos", "Menu", "Cart", "Profile")
+    else listOf("Торты", "Акции", "Меню", "Корзина", "Профиль")
+
     val icons = listOf(
         Icons.Outlined.Cake, Icons.Outlined.LocalOffer, Icons.Outlined.RestaurantMenu, Icons.Outlined.ShoppingCart, Icons.Outlined.Person
     )
@@ -32,7 +44,10 @@ fun CustomerMainScreen(
                         icon = { Icon(icons[index], contentDescription = title) },
                         label = { Text(title, fontSize = 12.sp) },
                         selected = selectedTab == index,
-                        onClick = { selectedTab = index },
+                        onClick = {
+                            selectedTab = index
+                            if (index == 1) onNavigateToPromo()
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = ChocolateBrown,
                             selectedTextColor = ChocolateBrown,
@@ -47,11 +62,24 @@ fun CustomerMainScreen(
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             when (selectedTab) {
-                0 -> HomeScreen(onNavigateToProduct = onNavigateToProduct) // Torts (Cakes)
-                1 -> CenterText("Акции (Promotions)") // Promos
-                2 -> CenterText("Меню (Menu)") // Menu
-                3 -> CartScreen(onCheckoutClicked = onNavigateToCheckout) // Cart
-                4 -> ProfileScreen() // Profile
+                0 -> HomeScreen(
+                    onCategorySelected = onCategorySelected,
+                    onNavigateToPromo = onNavigateToPromo,
+                    isEnglish = isEnglish,
+                    onLanguageToggle = onLanguageToggle
+                )
+                1 -> CenterText(if (isEnglish) "Loading Promos..." else "Загрузка акций...")
+                2 -> CenterText(if (isEnglish) "Menu" else "Меню")
+                3 -> CartScreen(
+                    cartItems = cartItems,
+                    onCheckoutClicked = onNavigateToCheckout,
+                    onIncreaseQuantity = onIncreaseQuantity,
+                    onDecreaseQuantity = onDecreaseQuantity,
+                    onDeleteItem = onDeleteItem,
+                    onWeightChanged = onWeightChanged,
+                    isEnglish = isEnglish // <-- PASSING THIS FIXES THE ERROR
+                )
+                4 -> ProfileScreen()
             }
         }
     }

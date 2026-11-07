@@ -11,6 +11,13 @@ import androidx.compose.ui.Modifier
 import com.example.mas_cake1.ui.screens.*
 import com.example.mas_cake1.ui.theme.CreamWhite
 
+data class CartItem(
+    val name: String,
+    var weight: String,
+    var price: Int,
+    val quantity: Int = 1
+)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -18,7 +25,22 @@ class MainActivity : ComponentActivity() {
         setContent {
             Surface(modifier = Modifier.fillMaxSize(), color = CreamWhite) {
                 var currentScreen by remember { mutableStateOf("splash") }
+                var previousScreen by remember { mutableStateOf("customerHome") }
                 var selectedCake by remember { mutableStateOf("") }
+                var selectedCategory by remember { mutableStateOf("") }
+                var isEnglish by remember { mutableStateOf(true) }
+
+                val cartItems = remember { mutableStateListOf<CartItem>() }
+
+                fun addToCart(name: String, weight: String, price: Int) {
+                    val existingItemIndex = cartItems.indexOfFirst { it.name == name && it.weight == weight }
+                    if (existingItemIndex != -1) {
+                        val existingItem = cartItems[existingItemIndex]
+                        cartItems[existingItemIndex] = existingItem.copy(quantity = existingItem.quantity + 1)
+                    } else {
+                        cartItems.add(CartItem(name, weight, price, 1))
+                    }
+                }
 
                 when (currentScreen) {
                     "splash" -> SplashScreen(onStartClicked = { currentScreen = "register" })
@@ -28,30 +50,116 @@ class MainActivity : ComponentActivity() {
                     )
                     "roleSelection" -> RoleSelectionScreen(
                         onCustomerSelected = { currentScreen = "customerHome" },
-                        onAdminSelected = { /* Admin later */ },
+                        onAdminSelected = { },
                         onBackClicked = { currentScreen = "register" }
                     )
+
                     "customerHome" -> CustomerMainScreen(
+                        cartItems = cartItems,
                         onNavigateToProduct = { cakeName ->
+                            previousScreen = "customerHome"
                             selectedCake = cakeName
                             currentScreen = "productDetail"
                         },
-                        onNavigateToCheckout = { currentScreen = "checkout" }
+                        onNavigateToCheckout = { currentScreen = "checkout" },
+                        onNavigateToPromo = { currentScreen = "promo" },
+                        onCategorySelected = { category ->
+                            previousScreen = "customerHome"
+                            selectedCategory = category
+                            currentScreen = "categoryCakes"
+                        },
+                        isEnglish = isEnglish,
+                        onLanguageToggle = { isEnglish = !isEnglish },
+                        onIncreaseQuantity = { item ->
+                            val index = cartItems.indexOf(item)
+                            if (index != -1) cartItems[index] = item.copy(quantity = item.quantity + 1)
+                        },
+                        onDecreaseQuantity = { item ->
+                            val index = cartItems.indexOf(item)
+                            if (index != -1) {
+                                if (item.quantity > 1) cartItems[index] = item.copy(quantity = item.quantity - 1)
+                                else cartItems.remove(item)
+                            }
+                        },
+                        onDeleteItem = { item -> cartItems.remove(item) },
+                        onWeightChanged = { item, newWeight ->
+                            val index = cartItems.indexOf(item)
+                            if (index != -1) {
+                                val newPrice = when (newWeight) {
+                                    "1.5 кг" -> getCakePrice(item.name, "1.5")
+                                    "2 кг" -> getCakePrice(item.name, "2")
+                                    else -> getCakePrice(item.name, "1")
+                                }
+                                cartItems[index] = item.copy(weight = newWeight, price = newPrice)
+                            }
+                        }
                     )
+
+                    "promo" -> PromoScreen(
+                        onBackClicked = { currentScreen = "customerHome" },
+                        onAddToCart = { name, weight, price ->
+                            addToCart(name, weight, price)
+                            currentScreen = "customerHome"
+                        },
+                        isEnglish = isEnglish
+                    )
+
+                    "categoryCakes" -> CategoryCakesScreen(
+                        categoryName = selectedCategory,
+                        onBackClicked = { currentScreen = previousScreen },
+                        onCakeSelected = { cakeName ->
+                            previousScreen = "categoryCakes"
+                            selectedCake = cakeName
+                            currentScreen = "productDetail"
+                        }
+                    )
+
                     "productDetail" -> ProductDetailScreen(
                         cakeName = selectedCake,
-                        onBackClicked = { currentScreen = "customerHome" },
-                        onAddToCart = { currentScreen = "customerHome" }
+                        onBackClicked = { currentScreen = previousScreen },
+                        onAddToCart = { name, weight, price ->
+                            addToCart(name, weight, price)
+                            currentScreen = "customerHome"
+                        },
+                        isEnglish = isEnglish
                     )
+
+                    // SIMPLE CHECKOUT SCREEN
                     "checkout" -> CheckoutScreen(
                         onBackClicked = { currentScreen = "customerHome" },
-                        onOrderConfirmed = { currentScreen = "success" }
+                        onOrderConfirmed = {
+                            cartItems.clear()
+                            currentScreen = "success"
+                        }
                     )
+
                     "success" -> SuccessScreen(
                         onBackToHome = { currentScreen = "customerHome" }
                     )
                 }
             }
         }
+    }
+}
+
+fun getCakePrice(name: String, weightMultiplier: String): Int {
+    val basePrice = when (name) {
+        "Traditional Royal Fruitcake" -> 3500
+        "Lemon & Elderflower Sponge" -> 2800
+        "Yellow Sponge with Bavarian Cream" -> 3000
+        "Chocolate Biscuit Groom's Cake" -> 1800
+        "Classic White Vanilla Buttercream" -> 1600
+        "Honey Cake (Medovik)" -> 3300
+        "Napoleon" -> 2300
+        "Chocolate Cake (Prague)" -> 2400
+        "Cheesecake" -> 2100
+        "Bento Cake" -> 2278
+        else -> 3000
+    }
+    if (name == "Bento Cake") return basePrice
+    return when (weightMultiplier) {
+        "1.5" -> (basePrice * 1.5).toInt()
+        "2" -> (basePrice * 2).toInt()
+        else -> basePrice
     }
 }
