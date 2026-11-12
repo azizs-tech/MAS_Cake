@@ -20,6 +20,7 @@ fun CustomerMainScreen(
     onNavigateToCheckout: () -> Unit,
     onNavigateToPromo: () -> Unit,
     onCategorySelected: (String) -> Unit,
+    onSearchExecuted: (String) -> Unit, // <-- ADDED
     isEnglish: Boolean,
     onLanguageToggle: () -> Unit,
     onIncreaseQuantity: (CartItem) -> Unit,
@@ -65,6 +66,7 @@ fun CustomerMainScreen(
                 0 -> HomeScreen(
                     onCategorySelected = onCategorySelected,
                     onNavigateToPromo = onNavigateToPromo,
+                    onSearchExecuted = onSearchExecuted, // <-- PASSED
                     isEnglish = isEnglish,
                     onLanguageToggle = onLanguageToggle
                 )
@@ -77,7 +79,7 @@ fun CustomerMainScreen(
                     onDecreaseQuantity = onDecreaseQuantity,
                     onDeleteItem = onDeleteItem,
                     onWeightChanged = onWeightChanged,
-                    isEnglish = isEnglish // <-- PASSING THIS FIXES THE ERROR
+                    isEnglish = isEnglish
                 )
                 4 -> ProfileScreen()
             }

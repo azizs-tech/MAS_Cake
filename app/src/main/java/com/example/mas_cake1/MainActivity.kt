@@ -30,6 +30,9 @@ class MainActivity : ComponentActivity() {
                 var selectedCategory by remember { mutableStateOf("") }
                 var isEnglish by remember { mutableStateOf(true) }
 
+                // NEW: State to hold what the user searched for
+                var globalSearchQuery by remember { mutableStateOf("") }
+
                 val cartItems = remember { mutableStateListOf<CartItem>() }
 
                 fun addToCart(name: String, weight: String, price: Int) {
@@ -67,6 +70,10 @@ class MainActivity : ComponentActivity() {
                             previousScreen = "customerHome"
                             selectedCategory = category
                             currentScreen = "categoryCakes"
+                        },
+                        onSearchExecuted = { query ->
+                            globalSearchQuery = query
+                            currentScreen = "searchResults"
                         },
                         isEnglish = isEnglish,
                         onLanguageToggle = { isEnglish = !isEnglish },
@@ -106,9 +113,20 @@ class MainActivity : ComponentActivity() {
 
                     "categoryCakes" -> CategoryCakesScreen(
                         categoryName = selectedCategory,
-                        onBackClicked = { currentScreen = previousScreen },
+                        onBackClicked = { currentScreen = "customerHome" },
                         onCakeSelected = { cakeName ->
                             previousScreen = "categoryCakes"
+                            selectedCake = cakeName
+                            currentScreen = "productDetail"
+                        }
+                    )
+
+                    // NEW: Search Results Screen
+                    "searchResults" -> SearchResultsScreen(
+                        searchQuery = globalSearchQuery,
+                        onBackClicked = { currentScreen = "customerHome" },
+                        onCakeSelected = { cakeName ->
+                            previousScreen = "searchResults"
                             selectedCake = cakeName
                             currentScreen = "productDetail"
                         }
@@ -124,13 +142,14 @@ class MainActivity : ComponentActivity() {
                         isEnglish = isEnglish
                     )
 
-                    // SIMPLE CHECKOUT SCREEN
                     "checkout" -> CheckoutScreen(
+                        totalPrice = cartItems.sumOf { it.price * it.quantity },
                         onBackClicked = { currentScreen = "customerHome" },
                         onOrderConfirmed = {
                             cartItems.clear()
                             currentScreen = "success"
-                        }
+                        },
+                        isEnglish = isEnglish
                     )
 
                     "success" -> SuccessScreen(
@@ -154,6 +173,16 @@ fun getCakePrice(name: String, weightMultiplier: String): Int {
         "Chocolate Cake (Prague)" -> 2400
         "Cheesecake" -> 2100
         "Bento Cake" -> 2278
+        "Птичье молоко (Ptichye Moloko)" -> 2600
+        "Сметанник (Smetannik)" -> 535
+        "Невский пирог (Nevsky Pirog)" -> 226
+        "Мишка на севере (Mishka na Severe)" -> 2950
+        "Прага (Prague)" -> 4200
+        "Тирамису (Tiramisu)" -> 3345
+        "Захерторт (Sachertorte)" -> 1120
+        "Красный бархат (Red Velvet)" -> 924
+        "Опера (Opéra)" -> 3500
+        "Чёрный лес (Black Forest)" -> 2567
         else -> 3000
     }
     if (name == "Bento Cake") return basePrice

@@ -25,7 +25,8 @@ import com.example.mas_cake1.ui.theme.LightCaramel
 @Composable
 fun HomeScreen(
     onCategorySelected: (String) -> Unit,
-    onNavigateToPromo: () -> Unit, // <-- Added to handle banner click
+    onNavigateToPromo: () -> Unit,
+    onSearchExecuted: (String) -> Unit, // <-- ADDED
     isEnglish: Boolean,
     onLanguageToggle: () -> Unit
 ) {
@@ -73,7 +74,13 @@ fun HomeScreen(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text(searchPlaceholder, color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = ChocolateBrown) },
+                leadingIcon = {
+                    IconButton(onClick = {
+                        if (searchQuery.isNotBlank()) onSearchExecuted(searchQuery) // <-- TRIGGER SEARCH ON CLICK
+                    }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search", tint = ChocolateBrown)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -86,13 +93,12 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // DISCOUNT BANNER - CLICKABLE TO PROMO SCREEN
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
                     .background(LightCaramel, RoundedCornerShape(16.dp))
-                    .clickable { onNavigateToPromo() }, // <-- Click action here
+                    .clickable { onNavigateToPromo() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(bannerText, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
