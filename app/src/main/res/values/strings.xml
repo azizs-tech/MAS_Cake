@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">MAS_Cake1</string>
+    <string name="app_name">MAS Cake</string>
+    <string name="channel_orders">Order updates</string>
 </resources>

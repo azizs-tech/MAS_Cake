@@ -47,10 +47,16 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
     // Icons
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.compose.material.icons.extended)
 
-    // Coil (Image Loading)
-    implementation("io.coil-kt:coil-compose:2.6.0")
+    // Coil (image loading)
+    implementation(libs.coil.compose)
+
+    // Lottie animations (splash + success screen)
+    implementation(libs.lottie.compose)
+
+    // WorkManager (local "your order is being prepared" notification)
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

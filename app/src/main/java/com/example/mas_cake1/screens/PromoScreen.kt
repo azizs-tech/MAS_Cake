@@ -1,129 +1,98 @@
 package com.example.mas_cake1.ui.screens
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.example.mas_cake1.R
-import com.example.mas_cake1.ui.theme.ChocolateBrown
-import com.example.mas_cake1.ui.theme.CreamWhite
-import com.example.mas_cake1.ui.theme.LightCaramel
+import com.example.mas_cake1.data.AppStore
+import com.example.mas_cake1.data.formatRub
+import com.example.mas_cake1.ui.components.CakeImage
+import com.example.mas_cake1.ui.components.EmptyState
+import com.example.mas_cake1.ui.components.FavoriteButton
+import com.example.mas_cake1.ui.components.StockBadge
+import com.example.mas_cake1.ui.theme.LocalEnglish
+import com.example.mas_cake1.ui.theme.Mas
+import com.example.mas_cake1.ui.theme.Strawberry
+import com.example.mas_cake1.ui.theme.tr
+import kotlin.math.roundToInt
 
-data class PromoCakeData(
-    val name: String,
-    val originalPrice: Int,
-    val discountedPrice: Int,
-    val imageRes: Int
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
+/** Content of the "Promos" tab. The discount is applied automatically in the cart. */
 @Composable
-fun PromoScreen(
-    onBackClicked: () -> Unit,
-    onAddToCart: (String, String, Int) -> Unit, // Name, Weight, Price
-    isEnglish: Boolean
-) {
-    // 5 cakes for the discount
-    val promoList = listOf(
-        PromoCakeData("Honey Cake (Medovik)", 3300, 2805, R.drawable.cake_1birth), // 15% off
-        PromoCakeData("Napoleon", 2300, 1955, R.drawable.cake_2birth), // 15% off
-        PromoCakeData("Cheesecake", 2100, 1785, R.drawable.cake_4birth), // 15% off
-        PromoCakeData("Traditional Royal Fruitcake", 3500, 2975, R.drawable.cake_1wed), // 15% off
-        PromoCakeData("Chocolate Cake (Prague)", 2400, 2040, R.drawable.cake_3birth) // 15% off
-    )
+fun PromoContent(onOpenCake: (String) -> Unit, onAdded: () -> Unit) {
+    val en = LocalEnglish.current
+    val settings = AppStore.settings
+    val promoCakes = AppStore.cakes.filter { it.onPromo }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (isEnglish) "15% Discount!" else "Скидка 15%!", color = ChocolateBrown, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClicked) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChocolateBrown)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CreamWhite)
+    if (!settings.promoEnabled || promoCakes.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            EmptyState(
+                tr("No promotions right now", "Сейчас нет акций"),
+                tr("Check back soon — new offers are on the way!", "Загляните позже — новые предложения уже готовятся!")
             )
-        },
-        containerColor = CreamWhite
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(promoList.size) { index ->
-                val cake = promoList[index]
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(4.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Small image
-                            AsyncImage(
-                                model = cake.imageRes,
-                                contentDescription = cake.name,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(90.dp)
-                                    .background(Color.LightGray, RoundedCornerShape(8.dp))
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
+        }
+        return
+    }
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(cake.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ChocolateBrown)
-
-                                // Original price (crossed out)
-                                Text(
-                                    text = "${cake.originalPrice} ₽",
-                                    color = Color.Gray,
-                                    fontSize = 14.sp,
-                                    textDecoration = TextDecoration.LineThrough
-                                )
-
-                                // Discounted price
-                                Text(
-                                    text = "${cake.discountedPrice} ₽",
-                                    color = Color.Red,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text(tr("${settings.discountPercent}% Discount!", "Скидка ${settings.discountPercent}%!"), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Mas.colors.text)
+            Text(
+                tr("The discount is applied automatically in your cart.", "Скидка применяется автоматически в корзине."),
+                color = Mas.colors.textMuted, fontSize = 14.sp
+            )
+        }
+        items(promoCakes.size) { index ->
+            val cake = promoCakes[index]
+            val discounted = (cake.pricePerKg * (100 - settings.discountPercent) / 100.0).roundToInt()
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable { onOpenCake(cake.id) },
+                colors = CardDefaults.cardColors(containerColor = Mas.colors.surface),
+                elevation = CardDefaults.cardElevation(3.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box {
+                            CakeImage(cake, Modifier.size(96.dp).clip(RoundedCornerShape(12.dp)))
+                            StockBadge("-${settings.discountPercent}%", Strawberry, Modifier.align(Alignment.TopStart).padding(4.dp))
                         }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Add to Cart Button
-                        Button(
-                            onClick = {
-                                // We pass "1 кг" as the default weight for the promo
-                                onAddToCart(cake.name, if (isEnglish) "1 kg" else "1 кг", cake.discountedPrice)
-                            },
-                            modifier = Modifier.fillMaxWidth().height(45.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = LightCaramel)
-                        ) {
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(cake.name(en), fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Mas.colors.text)
+                            Text(formatRub(cake.pricePerKg), color = Color.Gray, fontSize = 14.sp, textDecoration = TextDecoration.LineThrough)
                             Text(
-                                text = if (isEnglish) "Add to Cart — ${cake.discountedPrice} ₽" else "В корзину — ${cake.discountedPrice} ₽",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                formatRub(discounted) + if (cake.isPerPiece) tr(" / pc", " / шт") else tr(" / kg", " / кг"),
+                                color = Strawberry, fontSize = 18.sp, fontWeight = FontWeight.Bold
                             )
                         }
+                        FavoriteButton(cake.id, onImage = false)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { AppStore.addToCart(cake.id, 1.0); onAdded() },
+                        enabled = cake.canOrder,
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Mas.colors.accent, contentColor = Color.White)
+                    ) {
+                        Text(
+                            if (cake.canOrder) tr("Add to Cart — ${formatRub(discounted)}", "В корзину — ${formatRub(discounted)}")
+                            else tr("Out of stock", "Нет в наличии"),
+                            fontSize = 14.sp, fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

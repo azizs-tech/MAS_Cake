@@ -1,194 +1,205 @@
 package com.example.mas_cake1
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.example.mas_cake1.data.AppStore
+import com.example.mas_cake1.data.CakeCategory
+import com.example.mas_cake1.notifications.OrderNotificationWorker
 import com.example.mas_cake1.ui.screens.*
-import com.example.mas_cake1.ui.theme.CreamWhite
-
-data class CartItem(
-    val name: String,
-    var weight: String,
-    var price: Int,
-    val quantity: Int = 1
-)
+import com.example.mas_cake1.ui.screens.admin.*
+import com.example.mas_cake1.ui.theme.LocalEnglish
+import com.example.mas_cake1.ui.theme.MAS_CAKE1Theme
+import com.example.mas_cake1.ui.theme.Mas
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            Surface(modifier = Modifier.fillMaxSize(), color = CreamWhite) {
-                var currentScreen by remember { mutableStateOf("splash") }
-                var previousScreen by remember { mutableStateOf("customerHome") }
-                var selectedCake by remember { mutableStateOf("") }
-                var selectedCategory by remember { mutableStateOf("") }
-                var isEnglish by remember { mutableStateOf(true) }
-
-                // NEW: State to hold what the user searched for
-                var globalSearchQuery by remember { mutableStateOf("") }
-
-                val cartItems = remember { mutableStateListOf<CartItem>() }
-
-                fun addToCart(name: String, weight: String, price: Int) {
-                    val existingItemIndex = cartItems.indexOfFirst { it.name == name && it.weight == weight }
-                    if (existingItemIndex != -1) {
-                        val existingItem = cartItems[existingItemIndex]
-                        cartItems[existingItemIndex] = existingItem.copy(quantity = existingItem.quantity + 1)
-                    } else {
-                        cartItems.add(CartItem(name, weight, price, 1))
-                    }
-                }
-
-                when (currentScreen) {
-                    "splash" -> SplashScreen(onStartClicked = { currentScreen = "register" })
-                    "register" -> RegisterScreen(
-                        onSignUpClicked = { currentScreen = "roleSelection" },
-                        onBackClicked = { currentScreen = "splash" }
-                    )
-                    "roleSelection" -> RoleSelectionScreen(
-                        onCustomerSelected = { currentScreen = "customerHome" },
-                        onAdminSelected = { },
-                        onBackClicked = { currentScreen = "register" }
-                    )
-
-                    "customerHome" -> CustomerMainScreen(
-                        cartItems = cartItems,
-                        onNavigateToProduct = { cakeName ->
-                            previousScreen = "customerHome"
-                            selectedCake = cakeName
-                            currentScreen = "productDetail"
-                        },
-                        onNavigateToCheckout = { currentScreen = "checkout" },
-                        onNavigateToPromo = { currentScreen = "promo" },
-                        onCategorySelected = { category ->
-                            previousScreen = "customerHome"
-                            selectedCategory = category
-                            currentScreen = "categoryCakes"
-                        },
-                        onSearchExecuted = { query ->
-                            globalSearchQuery = query
-                            currentScreen = "searchResults"
-                        },
-                        isEnglish = isEnglish,
-                        onLanguageToggle = { isEnglish = !isEnglish },
-                        onIncreaseQuantity = { item ->
-                            val index = cartItems.indexOf(item)
-                            if (index != -1) cartItems[index] = item.copy(quantity = item.quantity + 1)
-                        },
-                        onDecreaseQuantity = { item ->
-                            val index = cartItems.indexOf(item)
-                            if (index != -1) {
-                                if (item.quantity > 1) cartItems[index] = item.copy(quantity = item.quantity - 1)
-                                else cartItems.remove(item)
-                            }
-                        },
-                        onDeleteItem = { item -> cartItems.remove(item) },
-                        onWeightChanged = { item, newWeight ->
-                            val index = cartItems.indexOf(item)
-                            if (index != -1) {
-                                val newPrice = when (newWeight) {
-                                    "1.5 кг" -> getCakePrice(item.name, "1.5")
-                                    "2 кг" -> getCakePrice(item.name, "2")
-                                    else -> getCakePrice(item.name, "1")
-                                }
-                                cartItems[index] = item.copy(weight = newWeight, price = newPrice)
-                            }
-                        }
-                    )
-
-                    "promo" -> PromoScreen(
-                        onBackClicked = { currentScreen = "customerHome" },
-                        onAddToCart = { name, weight, price ->
-                            addToCart(name, weight, price)
-                            currentScreen = "customerHome"
-                        },
-                        isEnglish = isEnglish
-                    )
-
-                    "categoryCakes" -> CategoryCakesScreen(
-                        categoryName = selectedCategory,
-                        onBackClicked = { currentScreen = "customerHome" },
-                        onCakeSelected = { cakeName ->
-                            previousScreen = "categoryCakes"
-                            selectedCake = cakeName
-                            currentScreen = "productDetail"
-                        }
-                    )
-
-                    // NEW: Search Results Screen
-                    "searchResults" -> SearchResultsScreen(
-                        searchQuery = globalSearchQuery,
-                        onBackClicked = { currentScreen = "customerHome" },
-                        onCakeSelected = { cakeName ->
-                            previousScreen = "searchResults"
-                            selectedCake = cakeName
-                            currentScreen = "productDetail"
-                        }
-                    )
-
-                    "productDetail" -> ProductDetailScreen(
-                        cakeName = selectedCake,
-                        onBackClicked = { currentScreen = previousScreen },
-                        onAddToCart = { name, weight, price ->
-                            addToCart(name, weight, price)
-                            currentScreen = "customerHome"
-                        },
-                        isEnglish = isEnglish
-                    )
-
-                    "checkout" -> CheckoutScreen(
-                        totalPrice = cartItems.sumOf { it.price * it.quantity },
-                        onBackClicked = { currentScreen = "customerHome" },
-                        onOrderConfirmed = {
-                            cartItems.clear()
-                            currentScreen = "success"
-                        },
-                        isEnglish = isEnglish
-                    )
-
-                    "success" -> SuccessScreen(
-                        onBackToHome = { currentScreen = "customerHome" }
-                    )
-                }
-            }
-        }
+        AppStore.init(applicationContext)
+        setContent { MasCakeApp() }
     }
 }
 
-fun getCakePrice(name: String, weightMultiplier: String): Int {
-    val basePrice = when (name) {
-        "Traditional Royal Fruitcake" -> 3500
-        "Lemon & Elderflower Sponge" -> 2800
-        "Yellow Sponge with Bavarian Cream" -> 3000
-        "Chocolate Biscuit Groom's Cake" -> 1800
-        "Classic White Vanilla Buttercream" -> 1600
-        "Honey Cake (Medovik)" -> 3300
-        "Napoleon" -> 2300
-        "Chocolate Cake (Prague)" -> 2400
-        "Cheesecake" -> 2100
-        "Bento Cake" -> 2278
-        "Птичье молоко (Ptichye Moloko)" -> 2600
-        "Сметанник (Smetannik)" -> 535
-        "Невский пирог (Nevsky Pirog)" -> 226
-        "Мишка на севере (Mishka na Severe)" -> 2950
-        "Прага (Prague)" -> 4200
-        "Тирамису (Tiramisu)" -> 3345
-        "Захерторт (Sachertorte)" -> 1120
-        "Красный бархат (Red Velvet)" -> 924
-        "Опера (Opéra)" -> 3500
-        "Чёрный лес (Black Forest)" -> 2567
-        else -> 3000
+/** One entry of the back stack. [arg] / [arg2] carry things like a cake id or a search query. */
+data class Screen(val route: String, val arg: String = "", val arg2: String = "")
+
+class Navigator(start: Screen) {
+    val stack = mutableStateListOf(start)
+    val current: Screen get() = stack.last()
+    val canGoBack: Boolean get() = stack.size > 1
+
+    fun go(route: String, arg: String = "", arg2: String = "") {
+        stack.add(Screen(route, arg, arg2))
     }
-    if (name == "Bento Cake") return basePrice
-    return when (weightMultiplier) {
-        "1.5" -> (basePrice * 1.5).toInt()
-        "2" -> (basePrice * 2).toInt()
-        else -> basePrice
+
+    fun back() {
+        if (stack.size > 1) stack.removeAt(stack.lastIndex)
+    }
+
+    /** Clears history, e.g. after logging out or finishing an order. */
+    fun reset(route: String) {
+        stack.clear()
+        stack.add(Screen(route))
+    }
+}
+
+@Composable
+fun MasCakeApp() {
+    val settings = AppStore.settings
+    val context = LocalContext.current
+    val nav = remember { Navigator(Screen("splash")) }
+
+    // Tabs are remembered here, so coming back from a cake page keeps you on the same tab.
+    var customerTab by rememberSaveable { mutableIntStateOf(0) }
+    var adminTab by rememberSaveable { mutableIntStateOf(0) }
+
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var askedPermission by rememberSaveable { mutableStateOf(false) }
+
+    fun openCustomer(tab: Int = 0) {
+        customerTab = tab
+        nav.reset("customer")
+        if (!askedPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            askedPermission = true
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    val toggleLanguage = { AppStore.updateSettings { it.copy(isEnglish = !it.isEnglish) } }
+
+    MAS_CAKE1Theme(darkTheme = settings.darkMode) {
+        CompositionLocalProvider(LocalEnglish provides settings.isEnglish) {
+            BackHandler(enabled = nav.canGoBack) { nav.back() }
+
+            Surface(modifier = Modifier.fillMaxSize(), color = Mas.colors.background) {
+                AnimatedContent(
+                    targetState = nav.current,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "screens"
+                ) { screen ->
+                    when (screen.route) {
+                        // ---------------------------------------------------- onboarding
+                        "splash" -> SplashScreen(
+                            onStartClicked = {
+                                if (settings.userName.isBlank()) nav.go("register") else nav.go("role")
+                            },
+                            onLanguageToggle = toggleLanguage
+                        )
+
+                        "register" -> RegisterScreen(
+                            onSignUpClicked = { name, phone, email ->
+                                AppStore.registerCustomer(name, phone, email)
+                                nav.go("role")
+                            },
+                            onBackClicked = { nav.back() },
+                            onLanguageToggle = toggleLanguage
+                        )
+
+                        "role" -> RoleSelectionScreen(
+                            onCustomerSelected = { openCustomer() },
+                            onAdminSelected = { adminTab = 0; nav.reset("admin") },
+                            onBackClicked = { nav.back() },
+                            onLanguageToggle = toggleLanguage
+                        )
+
+                        // ---------------------------------------------------- customer
+                        "customer" -> CustomerMainScreen(
+                            selectedTab = customerTab,
+                            onTabSelected = { customerTab = it },
+                            onOpenCake = { nav.go("product", it) },
+                            onOpenCategory = { nav.go("category", it.name) },
+                            onSearch = { query, filter -> nav.go("search", query, filter) },
+                            onCheckout = { nav.go("checkout") },
+                            onLanguageToggle = toggleLanguage,
+                            onEditProfile = { nav.go("editProfile") },
+                            onFavorites = { nav.go("favorites") },
+                            onMyOrders = { nav.go("myOrders") },
+                            onSettings = { nav.go("settings") },
+                            onLogout = { nav.reset("splash") }
+                        )
+
+                        "product" -> ProductDetailScreen(
+                            cakeId = screen.arg,
+                            onBackClicked = { nav.back() },
+                            onGoToCart = { openCustomer(tab = 3) }
+                        )
+
+                        "category" -> CategoryCakesScreen(
+                            category = runCatching { CakeCategory.valueOf(screen.arg) }.getOrDefault(CakeCategory.USUAL),
+                            onBackClicked = { nav.back() },
+                            onCakeSelected = { nav.go("product", it) }
+                        )
+
+                        "search" -> SearchResultsScreen(
+                            initialQuery = screen.arg,
+                            initialFilter = screen.arg2,
+                            onBackClicked = { nav.back() },
+                            onCakeSelected = { nav.go("product", it) }
+                        )
+
+                        "checkout" -> CheckoutScreen(
+                            onBackClicked = { nav.back() },
+                            onOrderPlaced = { order ->
+                                OrderNotificationWorker.schedule(context, order.id, settings.isEnglish)
+                                nav.reset("customer")
+                                nav.go("success", order.id.toString())
+                            }
+                        )
+
+                        "success" -> SuccessScreen(
+                            orderId = screen.arg.toIntOrNull() ?: 0,
+                            onBackToHome = { openCustomer(tab = 0) }
+                        )
+
+                        "editProfile" -> EditProfileScreen(onBack = { nav.back() })
+                        "favorites" -> FavoritesScreen(onBack = { nav.back() }, onOpenCake = { nav.go("product", it) })
+                        "myOrders" -> MyOrdersScreen(onBack = { nav.back() })
+                        "settings" -> SettingsScreen(onBack = { nav.back() })
+
+                        // ---------------------------------------------------- admin
+                        "admin" -> AdminMainScreen(
+                            selectedTab = adminTab,
+                            onTabSelected = { adminTab = it },
+                            onOpenOrder = { nav.go("adminOrder", it.toString()) },
+                            onEditCake = { nav.go("adminCakeEdit", it) },
+                            onAddCake = { nav.go("adminCakeEdit", "") },
+                            onOpenPromo = { nav.go("adminPromo") },
+                            onOpenCustomers = { nav.go("adminCustomers") },
+                            onExit = { nav.reset("role") }
+                        )
+
+                        "adminOrder" -> AdminOrderDetailScreen(
+                            orderId = screen.arg.toIntOrNull() ?: 0,
+                            onBack = { nav.back() }
+                        )
+
+                        "adminCakeEdit" -> AdminCakeEditScreen(
+                            cakeId = screen.arg,
+                            onBack = { nav.back() }
+                        )
+
+                        "adminPromo" -> AdminPromoScreen(onBack = { nav.back() })
+                        "adminCustomers" -> AdminCustomersScreen(onBack = { nav.back() })
+                    }
+                }
+            }
+        }
     }
 }
